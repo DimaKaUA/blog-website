@@ -2,6 +2,8 @@
 
 const express = require("express");
 const _ = require("lodash");
+const mongoose = require("mongoose");
+const models = require(__dirname + "/mongoDB/models.js")(mongoose);
 
 const app = express();
 
@@ -16,8 +18,15 @@ const contactContent = "Scelerisque eleifend donec pretium vulputate sapien. Rho
 
 let posts = [];
 
+// Connect to mongoDB
+mongoose.connect("mongodb://localhost:27017/blogDB", {useNewUrlParser: true, useUnifiedTopology: true});
+
 app.get("/", function(req, res){
-  res.render("home", {content: homeStartingContent, postList: posts});
+
+  models.Post.find({}).then(
+    (foundPosts) => res.render("home", {content: homeStartingContent, postList: foundPosts}),
+    (err) => console.log("No posts because of " + err)
+  )
 });
 
 app.get("/contact", function(req, res){
@@ -33,25 +42,23 @@ app.get("/compose", function(req, res){
 });
 
 app.post("/compose", function(req, res){
-  const post = {
-    title: req.body.postTitle,
+  
+  const newPost = new models.Post({
+    title: req.body.postTitle, 
     content: req.body.postBody
-  };
-  posts.push(post);
-  res.redirect("/");
+  });
+  newPost.save().then(
+      () => res.redirect("/"), 
+      (err) => console.log("Not saved because of " + err)
+    );
 });
 
-app.get("/posts/:postTitle", function(req, res){
-  const postTitle = req.params.postTitle;
+app.get("/posts/:postID", function(req, res){
 
-  posts.forEach((post, i) => {
-    if (_.lowerCase(post.title) === _.lowerCase(postTitle)){
-      res.render("post", {post: post});
-    } else {
-      console.log("Match not found");
-    }
-  });
-
+  models.Post.findById(req.params.postID).then(
+      (foundPost) => res.render("post", {post: foundPost}),
+      (err) => console.log("Match not found")
+    )
 });
 
 app.listen(3000, function() {
